@@ -3,14 +3,19 @@ from __future__ import print_function
 if __name__ == '__main__':
     from pyspark.sql import SparkSession
     spark = SparkSession.builder \
-        .master("local") \
+        .master("spark://0.0.0.0:7077") \
         .appName("Word Count") \
-        .config("spark.some.config.option", "some-value") \
+        .config("spark.eventLog.enabled", "true") \
+        .config("spark.eventLog.dir", "file:///opt/homebrew/Cellar/apache-spark/3.5.1/tmp/sparkui/") \
         .getOrCreate()
 
-    print(spark.range(5000).where("id>500").selectExpr("sum(id)").collect())
+    df1 = spark.range(2, 10000000, 2)
+    df2 = spark.range(2, 10000000, 4)
+    step1 = df1.repartition(5)
+    step12 = df2.repartition(6)
+    step2 = step1.selectExpr("id * 5 as id")
+    step3 = step2.join(step12, ["id"])
+    step4 = step3.selectExpr("sum(id)")
+    step4.collect()
 
-# COMMAND ----------
-# from pyspark import SparkConf
-# conf = SparkConf().setMaster("local[2]").setAppName("DefinitiveGuide")\
-#   .set("some.conf", "to.some.value")
+# spark-submit SparkGuide/example/16_1.py
