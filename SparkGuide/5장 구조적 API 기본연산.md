@@ -57,7 +57,7 @@ expr("(((someCol + 5) * 200 )- 6) < otherCol")
 ```
 <br/>
 
-#### 5.3 레코드와 로우
+### 5.3 레코드와 로우
 ```commandline
 - DataFrame에서 로우는 하나의 레코드
 - 로우 생성 예제
@@ -67,4 +67,104 @@ myRow[0]
 >> 'hollw'
 myRow[2]
 >> 1
+```
+<br/>
+
+
+### 5.4 DataFrame의 트랜스포메이션
+
+#### 5.4.1 DataFrame 생성 
+```commandline
+- 파일을 통해 생성
+df = spark.read.format("json").load("/Users/myname/Test/Spark_ref/SparkGuide/data//2015-summary.json")
+df.createOrReplaceTempView("dfTable")
+
+- Row 객체를 가진 Seq 타입을 직접 변환해 생성
+from pyspark.sql import Row
+from pyspark.sql.types import StructField, StructType, StringType, LongType
+myManualSchema = ([
+    StructField("some", StringType(), True),
+    StructField("col", StringType(), True),
+    StructField("name", LongType(), False)
+])
+myRow = Row("Hello", None, 1)
+myDf = spark.createDataFrame([myRow], myManualSchema)
+myDf.show()
+```
+<br/>
+
+#### 5.4.2 select / selectExpr
+```commandline
+- select / selectExpr 메서드를 사용하면 테이블에 SQL을 실행하는 것처럼 DataFrame에서도 SQL사용
+df.select("DEST_COUNTRY_NAME").show(2)
+
+- expr 메서드 조합
+from pyspark.sql.functions import expr
+df.select(expr("DEST_COUNTRY_NAME as des")).show(2)
++-------------+
+|          des|
++-------------+
+|United States|
+|United States|
++-------------+
+
+- selectExpr 메서드는 유효한 비집계형 SQL 구문을 지정할 수 있다.
+df.selectExpr("*", "DEST_COUNTRY_NAME AS des", "(DEST_COUNTRY_NAME = ORIGIN_COUNTRY_NAME) as within").show(2)
++-----------------+-------------------+-----+-------------+------+
+|DEST_COUNTRY_NAME|ORIGIN_COUNTRY_NAME|count|          des|within|
++-----------------+-------------------+-----+-------------+------+
+|    United States|            Romania|   15|United States| false|
+|    United States|            Croatia|    1|United States| false|
++-----------------+-------------------+-----+-------------+------+
+
+- DataFrame 컬럼에 대한 집계 함수 지정
+df.selectExpr("avg(count)", "count(distinct(DEST_COUNTRY_NAME))").show(2)
++-----------+---------------------------------+
+| avg(count)|count(DISTINCT DEST_COUNTRY_NAME)|
++-----------+---------------------------------+
+|1770.765625|                              132|
++-----------+---------------------------------+
+```
+<br/>
+
+#### 5.4.3 스파크 데이터 타입으로 변환하기
+```commandline
+- 명시적인 상수값을 lit()을 통해 전달
+from pyspark.sql.functions import lit
+df.select(expr("*"), lit(10).alias("One")).show()
+```
+<br/>
+
+#### 5.4.4 컬럼 추가하기
+```commandline
+- withColumn 메서드는 사용
+df.withColumn("numberOne", lit(1)).show(2)
++-----------------+-------------------+-----+---------+
+|DEST_COUNTRY_NAME|ORIGIN_COUNTRY_NAME|count|numberOne|
++-----------------+-------------------+-----+---------+
+|    United States|            Romania|   15|        1|
+|    United States|            Croatia|    1|        1|
++-----------------+-------------------+-----+---------+
+
+- 출발지와 도착지가 같은 여부를 가리는 컬럼 추가
+df.withColumn("within", expr("ORIGIN_COUNTRY_NAME == DEST_COUNTRY_NAME")).show(2)
++-----------------+-------------------+-----+------+
+|DEST_COUNTRY_NAME|ORIGIN_COUNTRY_NAME|count|within|
++-----------------+-------------------+-----+------+
+|    United States|            Romania|   15| false|
+|    United States|            Croatia|    1| false|
++-----------------+-------------------+-----+------+
+```
+<br/>
+
+#### 5.4.5 컬럼명 변경하기
+```commandline
+- withColumnRenamed 메서드 사용
+df.withColumnRenamed("DEST_COUNTRY_NAME", "dest").columns
+```
+<br/>
+
+#### 5.4.8 컬럼제거하기
+```commandline
+df.drop("ORIGIN_COUNTRY_NAME").columns
 ```
