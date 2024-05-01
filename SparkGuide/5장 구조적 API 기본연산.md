@@ -168,3 +168,84 @@ df.withColumnRenamed("DEST_COUNTRY_NAME", "dest").columns
 ```commandline
 df.drop("ORIGIN_COUNTRY_NAME").columns
 ```
+<br/>
+
+#### 5.4.9 컬럼 데이터 타입 변경하기
+```commandline
+- cast 메서드로 데이터 타입을 변환
+df.withColumn("count2", col("count").cast("string"))
+```
+<br/>
+
+#### 5.4.10 로우 필터링하기
+```commandline
+- DataFrame에서 where 나 filter 메서드로 필터링 가능
+df.filter(col("count") < 2).show(2)
+df.where("count < 2").show(2)
+
+- 여러 개의 AND 필터 지정
+df.where("count < 2").where(col("ORIGIN_COUNTRY_NAME") != "Coroatia").show(2)
+```
+<br/>
+
+#### 고유한 로우 얻기
+```commandline
+df.select("ORIGIN_COUNTRY_NAME", "DEST_COUNTRY_NAME").distinct().count()
+>>> 256
+```
+<br/>
+
+#### 로우 합치기 / 추가하기 
+```commandline
+- DataFrame은 불변성을 가지므로 레코드 추가는 불가하고, 원본과 새로운 DataFrame을 결합
+- Union은 두 개의 DataFrame의 스키마가 같아야 한다.
+df.union(newDF).where("count = 1")
+```
+<br/>
+
+#### 로우 정렬하기
+```commandline
+- sort / orderBy 메서드를 통해 정렬
+df.sort("count").show(3)
+df.orderBy("count asc").show(3)
++-----------------+-------------------+-----+
+|DEST_COUNTRY_NAME|ORIGIN_COUNTRY_NAME|count|
++-----------------+-------------------+-----+
+|          Moldova|      United States|    1|
+|    United States|          Singapore|    1|
+|    United States|            Croatia|    1|
++-----------------+-------------------+-----+
+
+df.sort(col("count").desc(), col("DEST_COUNTRY_NAME").asc()).show(3)
++-----------------+-------------------+------+
+|DEST_COUNTRY_NAME|ORIGIN_COUNTRY_NAME| count|
++-----------------+-------------------+------+
+|    United States|      United States|370002|
+|    United States|             Canada|  8483|
+|           Canada|      United States|  8399|
++-----------------+-------------------+------+
+```
+<br/>
+
+#### 5.4.17 repartition / coalesce 
+```commandline
+- 최적화 기법으로 자주 필터링하는 컬럼을 기준으로 데이터를 분할 하는 것
+- 파티셔닝 스키마와 파티션 수를 포함해 물리적 데이터 구성도 제어할 수 있음
+```
+```commandline
+Repartition
+- 메소드를 호출하면 무조건 전체 데이터를 셔플
+- 파티션을 늘리거나 줄일 수 있음
+- 현재 파티션 수보다 많거나, 컬럼을 기준으로 파티션을 만드는 경우에 사용
+df.repartition(5)
+
+- 특정 컬럼이 자주 필터링된다면, 컬럼 기준으로 파티션을 재분배
+df.repartition(col("DEST_COUNTRY_NAME")
+```
+```commandline
+Coalesce
+- 전체 데이터를 셔플하지 않고 파티션을 병합하려는 경우 사용
+- 파티션을 줄일 수만 있음
+df.repartition(5, col("DEST_COUNTRY_NAME")).coalesce(2)
+```
+<br/>
