@@ -245,7 +245,7 @@ df.repartition(col("DEST_COUNTRY_NAME")
 ```commandline
 Coalesce
 - 전체 데이터를 셔플하지 않고 파티션을 병합하려는 경우 사용
-- 파티션을 줄일 수만 있음
+- 파티션을 줄일 수만 있음 ( But coalesce(numofpartition,true) true 옵션시 때에는 강제로 셔플가능)
 df.repartition(5, col("DEST_COUNTRY_NAME")).coalesce(2)
 ```
 <br/>
