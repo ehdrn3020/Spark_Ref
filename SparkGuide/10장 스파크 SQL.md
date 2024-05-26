@@ -61,6 +61,9 @@ FROM some_sql_view GROUP BY DEST_COUNTRY_NAME
 관리형 테이블 / 외부 테이블 
 - 관리형 테이블을 DafaFrame.saveAsTable 메서드를 통해 모든 정보를 저장함
 - saveAsTable은 데이터를 스파크포맷으로 변환 후에 새로운 경로에 저장
+ * save와 saveAsTable의 차이점은 메타스토어에 메타데이터가 갱신되는가
+ * saveAsTable로 설정 후, DF에 컬럼이 추가됐다면 추가된 컬럼이 테이블에 알아서 추가
+ 
 - 데이터 저장경로는 spark.sql.warehouse.dir 속정으로 설정 (기본:/user/hive/warehouse)
 - show tables IN databaseName 쿼리를 사용해 데이터베이스의 테이블 확인 가능
 ```
@@ -110,5 +113,154 @@ CACHE TABLE flights
 
 UNCACHE TABLE FLIGHTS
 ```
+<br/>
 
+### 10.7 뷰
+```commandline
+- 뷰 생성, 기존 테이블의 여러 트랜스포메이션 작업을 지정
+- 기존 DataFrame에서 새로운 DataFrame을 만드는 작업과 같음
+CREATE GLOBAL TEMP VIEW just_usa_global_view_temp AS
+  SELECT * FROM flights WHERE dest_country_name = 'United States'
+  
+- 실행계획 확인가능
+EXPLAIN SELECT * FROM just_usa_view
 
+- 뷰 삭제
+DROP VIEW IF EXISTS just_usa_view;
+```
+<br/>
+
+### 10.8 데이터베이스
+```commandline
+- 데이터베이스를 정의하지 않으면 기본 데이터베이스를 사용함
+
+- 데이터베이스 확인
+SHOW DATABASES
+- 데이터베이스 생성
+CREATE DATABASE some_db
+- 데이터베이스 사용
+USE some_db
+- 데이터베이스 안의 테이블 확인
+SHOW tables
+
+- 현재 사용 중인 데이터베이스 확인
+SELECT current_database()
+
+- 데이터베이스 제거
+DROP DATABASE IF EXISTS some_db
+```
+<br/>
+
+10.9 select 구문
+```commandline
+- ANSI-SQL 요건을 충족
+
+- distinct count 문법 가능
+spark.sql("SELECT count(distinct DEST_COUNTRY_NAME) from some_sql").show()
+
+- case-when-then 구문
+SELECT
+    CASE 
+        WHEN DEST_COUNTRY_NAME = 'UNITED STATES' THEN 1
+        WHEN DEST_COUNTRY_NAME = 'Egypt' THEN 0
+        ELSE -1 END
+FROM partitioned_flights
+```
+<br/>
+
+### 10.10 고급 주제
+구조체
+```commandline
+- 아래 구조와 같을 때, 구조체 요소만을 조회
+ * SELECT country.DEST_COUNTRY_NAME, count FROM nested_data
++---------------------------+-----+
+|country                    |count|
++---------------------------+-----+
+|{United States, Romania}   |15   |
+|{United States, Croatia}   |1    |
++---------------------------+-----+
+```
+
+리스트
+```commandline
+- 값의 리스트를 만드는 collect_list 함수나, 중복 값이 없는 배열을 만드는 collect_set 함수 사용
+SELECT 
+    DEST_COUNTRY_NAME as new_name, collect_list(count) as flight_counts,
+    collect_set(ORIGIN_COUNTRY_NAME) as origin_set 
+FROM 
+    flights GROUP BY DEST_COUNTRY_NAME
++--------------------+-------------+---------------+
+|            new_name|flight_counts|     origin_set|
++--------------------+-------------+---------------+
+|             Algeria|          [4]|[United States]|
+|              Angola|         [15]|[United States]|
+|            Anguilla|         [41]|[United States]|
+| Antigua and Barbuda|        [126]|[United States]|
++--------------------+-------------+---------------+
+
+- 또 다른 배열 생성
+SELECT DEST_COUNTRY_NAME, ARRAY(1, 2, 3) FROM flights
+
+- 배열 조회
+SELECT DEST_COUNTRY_NAME as new_name, collect_list(count)[0]
+FROM flights GROUP BY DEST_COUNTRY_NAME
+
+- explode 함수를 사용해 다시 배열을 여러 로우로 변환
+spark.sql("select * from flights_agg").show()
++--------------------+----------------+
+|   DEST_COUNTRY_NAME|collected_counts|
++--------------------+----------------+
+|             Algeria|             [4]|
+|              Angola|            [15]|
+|            Anguilla|            [41]|
++--------------------+----------------+
+SELECT explode(collected_counts), DEST_COUNTRY_NAME FROM flights_agg
++---+--------------------+
+|col|   DEST_COUNTRY_NAME|
++---+--------------------+
+|  4|             Algeria|
+| 15|              Angola|
+| 41|            Anguilla|
++---+--------------------+
+```
+함수
+```commandline
+SHOW FUNCTIONS # 전체 함수 목록 확인
+SHOW SYSTEM FUNCTIONS # 내장 함수 목록 확인
+SHOW USER FUNCTIONS # 사용자 함수 목록 확인
+SHOW FUNCTIONS "s*"; # 함수 목록 확인시 조건
+
+- 사용자 함수
+def power3(number:Double):Double = number * number * number
+spark.udf.register("power3", power3(_:Double):Double)
+SELECT count, power3(count) FROM flights
+```
+서브쿼리 
+```commandline
+- 상호 연관 서브쿼리 ( correlated subquery )
+- 내부 쿼리에서 외부 범위에 있는 정보를 사용할 수 있음
+- 예제
+SELECT * 
+FROM flights f1
+WHERE EXISTS (
+    SELECT 1 
+    FROM flights f2
+    WHERE f1.dest_country_name = f2.origin_country_name
+) AND EXISTS (
+    SELECT 1 
+    FROM flights f2
+    WHERE f2.dest_country_name = f1.origin_country_name
+)
+
+- 비상호연관 서브쿼리 ( uncorrelated subquery )
+- 쿼리 외부 범위에 있는 어떤 관련 정보도 사용하고 있지 않고, 독자적으로 실행 가능
+- 예제
+SELECT * 
+FROM flights
+WHERE origin_country_name IN (
+    SELECT dest_country_name 
+    FROM flights
+    GROUP BY dest_country_name 
+    ORDER BY sum(count) DESC LIMIT 5
+)
+```
