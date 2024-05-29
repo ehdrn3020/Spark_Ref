@@ -1,10 +1,30 @@
 
 ## 11장 데이터소스
-
 ```commandline
-- Dataset은 스칼라와 자바에서만 사용할 수 있음
+DataFrame
+- 스파크 1.3에서 처리 속도 증가를 위해 추가 됨
+- 데이터를 스키마 형태로 추상화 하고, 카탈리스트 옵티마이저가 쿼리를 최적화하여 처리합니다.
+- DataFrame 또한 row 타입의 DataSet
+  ㄴ row type 참조 : https://spark.apache.org/docs/latest/api/java/org/apache/spark/sql/Row.html
+
+DataSet
+- 스파크 1.6에서 추가  
+- 데이터의 타입체크, 데이터 직렬화를 위한 인코더, 카탈리스트 옵티마이저를 지원하여 데이터 처리 속도를 더욱 증가
+- jvm 을 이용하는 언어인 스칼라와 자바에서만 사용할 수 있음
 - 스칼라나 자바를 사용할 때 모든 DataFrame은 Dataset을 의미
+
+- 스칼라에서는 스키마가 정의된 케이스 클래스 객체를 이용해 DataSet을 정의
+- 자바에서는 자바빈 객체를 이용해 DataSet을 정의
+- 인코더는 도메인별 특정 객체 T 를 스파크 내부 데이터타입으로 매핑하는 시스템을 의미
+  ㄴ 데이터셋에 접근할 때마다 Row 포맷이 아닌 사용자 정의 데이터타입으로 반환
+  
+  
+RDD는 SparkContext를 이용하고, DataFrame, DataSet SparkSession 객체를 이용
+Spark 2.0에서는 DataFrame API가 Dataset API와 합쳐짐
+SQL과 DataSet, DataFrame을 이용한 처리는 동일한 엔진을 이용하기 때문에 편리한 API를 이용
+참고 : https://spark.apache.org/docs/latest/sql-programming-guide.html
 ```
+<img src="./image/11-1.png" width="650">
 <br/>
 
 ### 11.1 Dataset을 사용할 시기
