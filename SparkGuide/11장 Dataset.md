@@ -1,5 +1,5 @@
 
-## 11장 데이터소스
+## 11장 Dataset
 ```commandline
 DataFrame
 - 스파크 1.3에서 처리 속도 증가를 위해 추가 됨
